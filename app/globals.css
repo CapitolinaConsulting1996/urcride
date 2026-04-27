@@ -18,13 +18,15 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 body {
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ── Carte base ─────────────────────────────────────────── */
@@ -52,8 +54,9 @@ body {
   font-size: 15px;
   min-height: 48px;
 }
+.btn-primary { touch-action: manipulation; }
 .btn-primary:hover { background: var(--green-light); }
-.btn-primary:active { transform: scale(0.98); }
+.btn-primary:active { transform: scale(0.97); opacity: 0.92; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-secondary {
@@ -112,14 +115,16 @@ body {
   border: 1.5px solid var(--border);
   border-radius: 10px;
   padding: 11px 14px;
-  font-size: 15px;
+  font-size: 16px; /* 16px previene lo zoom automatico su iOS */
   color: var(--text);
   background: white;
   transition: border-color 0.15s;
   outline: none;
   min-height: 48px;
+  -webkit-appearance: none;
+  appearance: none;
 }
-.input:focus { border-color: var(--green); }
+.input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(26,92,46,0.12); }
 .input::placeholder { color: #9ca3af; }
 
 /* ── Section title ───────────────────────────────────────── */
@@ -171,3 +176,23 @@ body {
 /* ── Safe area (mobile) ──────────────────────────────────── */
 .pb-safe { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
 .mb-nav { margin-bottom: calc(80px + env(safe-area-inset-bottom)); }
+
+/* ── Mobile: touch ottimizzato ───────────────────────────── */
+button, a, [role="button"] { touch-action: manipulation; }
+
+.card { transition: box-shadow 0.15s, transform 0.1s; }
+.card:active { transform: scale(0.99); }
+
+/* Scroll orizzontale fluido (filtri, chip) */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.overflow-x-auto::-webkit-scrollbar { display: none; }
+
+/* Focus visible solo da tastiera, non da tocco */
+:focus:not(:focus-visible) { outline: none; box-shadow: none; }
+:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+/* Testo non selezionabile su elementi UI */
+nav, button { user-select: none; -webkit-user-select: none; }

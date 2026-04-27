@@ -15,6 +15,15 @@ const NAV = [
   { href: '/profile',        label: 'Profilo',  icon: '👤' },
 ]
 
+// 5 tab su mobile: Chat al posto di Eventi (Eventi accessibile dalla Home)
+const MOBILE_NAV = [
+  { href: '/dashboard',     label: 'Home',     icon: '🏠' },
+  { href: '/rides',         label: 'Passaggi', icon: '🚗' },
+  { href: '/events',        label: 'Eventi',   icon: '📅' },
+  { href: '/messages',      label: 'Chat',     icon: '💬' },
+  { href: '/profile',       label: 'Profilo',  icon: '👤' },
+]
+
 export default function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
@@ -26,48 +35,30 @@ export default function Navbar() {
   const fetchCounts = async () => {
     const { data: { user: u } } = await supabase.auth.getUser()
     if (!u) return null
-
     const [{ count: msgCount }, { count: notifCount }] = await Promise.all([
-      supabase.from('messages').select('id', { count: 'exact' })
-        .eq('receiver_id', u.id).eq('read', false),
-      supabase.from('notifications').select('id', { count: 'exact' })
-        .eq('user_id', u.id).eq('read', false),
+      supabase.from('messages').select('id', { count: 'exact' }).eq('receiver_id', u.id).eq('read', false),
+      supabase.from('notifications').select('id', { count: 'exact' }).eq('user_id', u.id).eq('read', false),
     ])
     setUnread(msgCount || 0)
     setUnreadNotifs(notifCount || 0)
     return u
   }
 
-  // Re-fetch counts on every page navigation
-  useEffect(() => {
-    fetchCounts()
-  }, [pathname])
+  useEffect(() => { fetchCounts() }, [pathname])
 
-  // Initial load: profile + realtime subscription
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null
-
     async function init() {
       const u = await fetchCounts()
       if (!u) return
-
       const { data } = await supabase.from('profiles').select('*').eq('id', u.id).single()
       if (data) setUser(data as UserProfile)
-
-      // Realtime: increment badge when a new notification arrives
       channel = supabase
         .channel(`navbar-notifs-${u.id}`)
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${u.id}`,
-        }, () => {
-          setUnreadNotifs(n => n + 1)
-        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${u.id}` },
+          () => setUnreadNotifs(n => n + 1))
         .subscribe()
     }
-
     init()
     return () => { if (channel) supabase.removeChannel(channel) }
   }, [])
@@ -78,16 +69,9 @@ export default function Navbar() {
     router.refresh()
   }
 
-  const isActive = (href: string) => pathname.startsWith(href)
+  const isActive = (href: string) => pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
 
-  // Mobile NAV: only 5 items (drop Profilo, keep bell)
-  const mobileNav = [
-    { href: '/dashboard',     label: 'Home',     icon: '🏠' },
-    { href: '/rides',         label: 'Passaggi', icon: '🚗' },
-    { href: '/events',        label: 'Eventi',   icon: '📅' },
-    { href: '/notifications', label: 'Avvisi',   icon: '🔔' },
-    { href: '/profile',       label: 'Profilo',  icon: '👤' },
-  ]
+  const totalBadge = unread + unreadNotifs
 
   return (
     <>
@@ -105,20 +89,14 @@ export default function Navbar() {
           {NAV.map(item => (
             <Link key={item.href} href={item.href}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors relative ${
-                isActive(item.href)
-                  ? 'bg-white/20 text-white'
-                  : 'text-white/70 hover:text-white hover:bg-white/10'
+                isActive(item.href) ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'
               }`}>
               {item.label}
               {item.href === '/messages' && unread > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center px-1">
-                  {unread}
-                </span>
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center px-1">{unread}</span>
               )}
               {item.href === '/notifications' && unreadNotifs > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-amber-400 text-white text-[10px] rounded-full flex items-center justify-center px-1">
-                  {unreadNotifs}
-                </span>
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-amber-400 text-white text-[10px] rounded-full flex items-center justify-center px-1">{unreadNotifs}</span>
               )}
             </Link>
           ))}
@@ -133,47 +111,57 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Link href="/map" className="text-white/70 hover:text-white transition-colors text-sm font-medium">
-            🗺️ Mappa
-          </Link>
+          <Link href="/map" className="text-white/70 hover:text-white transition-colors text-sm font-medium">🗺️ Mappa</Link>
           <div className="w-px h-4 bg-white/20" />
           <Link href="/profile" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold text-white">
               {user?.full_name?.charAt(0) || '?'}
             </div>
           </Link>
-          <button onClick={logout} className="text-white/60 hover:text-white text-sm transition-colors">
-            Esci
-          </button>
+          <button onClick={logout} className="text-white/60 hover:text-white text-sm transition-colors">Esci</button>
         </div>
       </nav>
 
       {/* ── Mobile bottom tab bar ─────────────────────── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 safe-area-inset-bottom"
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.08)]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <div className="flex">
-          {mobileNav.map(item => (
-            <Link key={item.href} href={item.href}
-              className={`flex flex-1 flex-col items-center py-2 gap-0.5 relative transition-colors ${
-                isActive(item.href) ? 'text-[#1a5c2e]' : 'text-gray-400'
-              }`}>
-              <span className="text-xl leading-none">{item.icon}</span>
-              <span className="text-[10px] font-medium">{item.label}</span>
-              {item.href === '/messages' && unread > 0 && (
-                <span className="absolute top-1 right-1/4 min-w-[16px] h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center px-1">
-                  {unread}
+        <div className="flex items-stretch h-16">
+          {MOBILE_NAV.map(item => {
+            const active = isActive(item.href)
+            const hasBadge =
+              (item.href === '/messages' && unread > 0) ||
+              (item.href === '/profile' && totalBadge > 0)
+            const badgeCount = item.href === '/messages' ? unread : totalBadge
+
+            return (
+              <Link key={item.href} href={item.href}
+                className="flex flex-1 flex-col items-center justify-center gap-0.5 relative tap-highlight-none"
+                style={{ WebkitTapHighlightColor: 'transparent' }}>
+
+                {/* Pill background for active tab */}
+                {active && (
+                  <span className="absolute inset-x-2 inset-y-1.5 rounded-2xl"
+                    style={{ background: '#1a5c2e18' }} />
+                )}
+
+                <span className={`text-2xl leading-none transition-transform ${active ? 'scale-110' : ''}`}>
+                  {item.icon}
                 </span>
-              )}
-              {item.href === '/notifications' && unreadNotifs > 0 && (
-                <span className="absolute top-1 right-1/4 min-w-[16px] h-4 bg-amber-400 text-white text-[10px] rounded-full flex items-center justify-center px-1">
-                  {unreadNotifs}
+                <span className={`text-[10px] font-semibold tracking-tight transition-colors ${
+                  active ? 'text-[#1a5c2e]' : 'text-gray-400'
+                }`}>
+                  {item.label}
                 </span>
-              )}
-              {isActive(item.href) && (
-                <span className="absolute bottom-0 left-1/4 right-1/4 h-0.5 rounded-full bg-[#1a5c2e]" />
-              )}
-            </Link>
-          ))}
+
+                {/* Badge notifiche */}
+                {hasBadge && (
+                  <span className="absolute top-2 right-[18%] min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-sm">
+                    {badgeCount > 9 ? '9+' : badgeCount}
+                  </span>
+                )}
+              </Link>
+            )
+          })}
         </div>
       </nav>
     </>
