@@ -174,6 +174,7 @@ export interface MapPin {
   role: UserRole
   schedules: TrainingSchedule[]
   rider_profile?: RiderProfile
+  has_active_offer?: boolean
 }
 
 // ── Labels ──────────────────────────────────────────────────

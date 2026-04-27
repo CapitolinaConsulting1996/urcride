@@ -13,11 +13,12 @@ export interface MapViewProps {
 }
 
 const PIN_COLORS: Record<string, string> = {
-  passenger: '#3b82f6',
-  driver:    '#22c55e',
-  rider:     '#f97316',
-  both:      '#22c55e',
-  urc:       '#dc2626',
+  passenger:   '#3b82f6',
+  driver:      '#22c55e',
+  rider:       '#f97316',
+  both:        '#22c55e',
+  urc:         '#dc2626',
+  active_offer: '#f59e0b',
 }
 
 const ROUTE_COLORS: Record<string, string> = {
@@ -151,18 +152,23 @@ export default function MapView({ pins, currentUserId, onMessageUser, showRoutes
       pins.forEach(pin => {
         if (!pin.user.lat || !pin.user.lng || pin.user.lat === 0) return
 
-        const color = PIN_COLORS[pin.role] || '#6b7280'
+        const hasOffer = pin.has_active_offer
+        const color = hasOffer ? PIN_COLORS.active_offer : (PIN_COLORS[pin.role] || '#6b7280')
         const isMe = pin.user.id === currentUserId
+        const size = isMe ? 36 : hasOffer ? 32 : 28
 
         const icon = L.divIcon({
-          html: `<div style="background:${color};border:3px solid ${isMe ? '#fbbf24' : 'white'};
-            border-radius:50% 50% 50% 0;transform:rotate(-45deg);
-            width:${isMe ? 36 : 28}px;height:${isMe ? 36 : 28}px;
-            box-shadow:0 2px 8px rgba(0,0,0,0.35);"></div>`,
+          html: `<div style="position:relative">
+            <div style="background:${color};border:3px solid ${isMe ? '#fbbf24' : 'white'};
+              border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+              width:${size}px;height:${size}px;
+              box-shadow:0 2px 8px rgba(0,0,0,0.35);"></div>
+            ${hasOffer ? `<span style="position:absolute;top:-2px;right:-6px;font-size:14px;transform:none">🚗</span>` : ''}
+          </div>`,
           className: '',
-          iconSize: [isMe ? 36 : 28, isMe ? 36 : 28],
-          iconAnchor: [isMe ? 18 : 14, isMe ? 36 : 28],
-          popupAnchor: [0, isMe ? -36 : -28],
+          iconSize: [size, size],
+          iconAnchor: [size / 2, size],
+          popupAnchor: [0, -size],
         })
 
         const schedHtml = pin.schedules.length > 0
@@ -170,6 +176,11 @@ export default function MapView({ pins, currentUserId, onMessageUser, showRoutes
               `<div style="font-size:11px;color:#555">${DAY_SHORT[s.day_of_week] || s.day_of_week} ${s.time_start}–${s.time_end} ${s.type === 'arrival' ? '→ campo' : '← casa'}</div>`
             ).join('')
           : '<div style="font-size:11px;color:#999">Nessun orario</div>'
+
+        const offerHtml = hasOffer
+          ? `<div style="margin-top:6px;padding:6px;background:#fffbeb;border-radius:6px;font-size:11px;border:1px solid #fcd34d">
+              🚗 <b style="color:#d97706">Passaggio disponibile</b>
+            </div>` : ''
 
         const riderHtml = pin.rider_profile
           ? `<div style="margin-top:6px;padding:6px;background:#fff7ed;border-radius:6px;font-size:11px">
@@ -208,6 +219,7 @@ export default function MapView({ pins, currentUserId, onMessageUser, showRoutes
                 <div style="font-size:11px;font-weight:600;color:#555;margin-bottom:2px">Orari:</div>
                 ${schedHtml}
               </div>
+              ${offerHtml}
               ${riderHtml}
               <div>${waBtn}${msgBtn}</div>
             </div>`, { maxWidth: 280 })
@@ -254,12 +266,13 @@ export default function MapView({ pins, currentUserId, onMessageUser, showRoutes
         <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur rounded-xl shadow-lg p-3 z-[400]">
           <div className="text-xs font-bold text-gray-700 mb-2">Legenda</div>
           {[
-            { color: PIN_COLORS.urc,      label: 'Campo URC',           dot: true },
-            { color: PIN_COLORS.driver,   label: 'Driver / gratuito',    dot: true },
-            { color: PIN_COLORS.rider,    label: 'Rider / a pagamento',  dot: true },
-            { color: PIN_COLORS.passenger,label: 'Passeggero',           dot: true },
-            { color: ROUTE_COLORS.driver, label: 'Percorso driver',      dot: false },
-            { color: ROUTE_COLORS.rider,  label: 'Percorso rider',       dot: false },
+            { color: PIN_COLORS.active_offer, label: '🚗 Passaggio disponibile', dot: true },
+            { color: PIN_COLORS.urc,          label: 'Campo URC',               dot: true },
+            { color: PIN_COLORS.driver,       label: 'Driver / gratuito',        dot: true },
+            { color: PIN_COLORS.rider,        label: 'Rider / a pagamento',      dot: true },
+            { color: PIN_COLORS.passenger,    label: 'Passeggero',               dot: true },
+            { color: ROUTE_COLORS.driver,     label: 'Percorso driver',          dot: false },
+            { color: ROUTE_COLORS.rider,      label: 'Percorso rider',           dot: false },
           ].map(item => (
             <div key={item.label} className="flex items-center gap-2 mb-1">
               {item.dot

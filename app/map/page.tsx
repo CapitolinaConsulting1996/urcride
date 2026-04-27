@@ -37,30 +37,27 @@ export default function MapPage() {
   async function loadData() {
     const { data: { user } } = await supabase.auth.getUser()
 
-    // Carica tutti i profili con le loro info
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('*')
-      .not('lat', 'eq', 0)
-      .not('lng', 'eq', 0)
+    const today = new Date().toISOString().split('T')[0]
+
+    // Carica tutti i profili con le loro info + offerte attive
+    const [{ data: profiles }, { data: schedules }, { data: riderProfiles }, { data: activeOffers }] =
+      await Promise.all([
+        supabase.from('profiles').select('*').not('lat', 'eq', 0).not('lng', 'eq', 0),
+        supabase.from('training_schedules').select('*'),
+        supabase.from('rider_profiles').select('*'),
+        supabase.from('ride_offers').select('driver_id').eq('status', 'active').gte('date', today),
+      ])
 
     if (!profiles) { setLoading(false); return }
 
-    // Carica orari
-    const { data: schedules } = await supabase
-      .from('training_schedules')
-      .select('*')
-
-    // Carica profili rider
-    const { data: riderProfiles } = await supabase
-      .from('rider_profiles')
-      .select('*')
+    const driverIdsWithOffer = new Set((activeOffers || []).map((o: { driver_id: string }) => o.driver_id))
 
     const mapPins: MapPin[] = profiles.map(profile => ({
       user: profile as UserProfile,
       role: profile.role,
       schedules: (schedules || []).filter(s => s.user_id === profile.id),
       rider_profile: (riderProfiles || []).find(r => r.user_id === profile.id),
+      has_active_offer: driverIdsWithOffer.has(profile.id),
     }))
 
     if (user) {

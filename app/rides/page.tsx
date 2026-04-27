@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamicImport from 'next/dynamic'
 import { createClient } from '@/lib/supabase'
@@ -61,10 +61,12 @@ export default function RidesPage() {
 
     if (profile) setCurrentUser(profile as UserProfile)
     setOffers((allOffers || []) as RideOffer[])
+    const driverIdsWithOffer = new Set((allOffers || []).map(o => (o.driver as UserProfile)?.id).filter(Boolean))
     setMapPins((allProfiles || []).map((p: UserProfile) => ({
       user: p,
       role: p.role,
       schedules: [],
+      has_active_offer: driverIdsWithOffer.has(p.id),
     })))
     setEvents((evts || []) as ClubEvent[])
     setTeams((tms || []) as Team[])
