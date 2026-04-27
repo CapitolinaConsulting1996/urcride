@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#1a5c2e"/>
+  <!-- Rugby ball -->
+  <ellipse cx="256" cy="220" rx="150" ry="95" fill="white"/>
+  <line x1="106" y1="220" x2="406" y2="220" stroke="#1a5c2e" stroke-width="10"/>
+  <line x1="256" y1="125" x2="256" y2="315" stroke="#1a5c2e" stroke-width="10"/>
+  <line x1="186" y1="134" x2="186" y2="306" stroke="#1a5c2e" stroke-width="5"/>
+  <line x1="326" y1="134" x2="326" y2="306" stroke="#1a5c2e" stroke-width="5"/>
+  <!-- URC label -->
+  <text x="256" y="430" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="90" fill="white" text-anchor="middle" letter-spacing="4">URC</text>
+</svg>

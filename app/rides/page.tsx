@@ -47,7 +47,7 @@ export default function RidesPage() {
     const [{ data: profile }, { data: allOffers }, { data: evts }, { data: tms }, { data: reqs }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('ride_offers')
-        .select('*, driver:profiles(id,full_name,zone,address,rating_avg,trips_completed,is_verified,whatsapp_number), event:events(id,title), team:teams(id,name)')
+        .select('*, driver:profiles(id,full_name,zone,address,lat,lng,role,rating_avg,trips_completed,is_verified,whatsapp_number), event:events(id,title), team:teams(id,name)')
         .eq('status', 'active')
         .gte('date', today)
         .order('date', { ascending: true }),

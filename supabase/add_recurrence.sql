@@ -16,6 +16,9 @@ alter table public.events
 -- può modificare/eliminare.
 
 drop policy if exists "Admin gestisce eventi" on public.events;
+drop policy if exists "Utenti autenticati possono creare eventi" on public.events;
+drop policy if exists "Creatore o admin può modificare eventi" on public.events;
+drop policy if exists "Creatore o admin può eliminare eventi" on public.events;
 
 -- Tutti gli utenti autenticati possono creare eventi
 create policy "Utenti autenticati possono creare eventi"
