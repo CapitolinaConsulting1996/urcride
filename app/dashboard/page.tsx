@@ -2,206 +2,235 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import Navbar from '@/components/layout/Navbar'
-import type { UserProfile, RideOffer, RideRequest } from '@/types'
-import { ROLE_LABELS } from '@/types'
+import RideCard from '@/components/ui/RideCard'
+import EventCard from '@/components/ui/EventCard'
+import type { UserProfile, RideOffer, ClubEvent } from '@/types'
 import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
+
+export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
+  const today = new Date().toISOString().split('T')[0]
+
   const [
     { data: profile },
-    { data: myOffers },
+    { data: upcomingRides },
+    { data: upcomingEvents },
     { data: myRequests },
-    { data: pendingRequests },
-    { data: unreadMessages },
+    { count: unreadCount },
   ] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', user.id).single(),
+    supabase.from('profiles').select('*, team:teams(*)').eq('id', user.id).single(),
     supabase.from('ride_offers')
-      .select('*, requests:ride_requests(*, passenger:profiles(*))')
-      .eq('driver_id', user.id)
+      .select('*, driver:profiles(id,full_name,zone,address,rating_avg,trips_completed,is_verified), event:events(id,title)')
       .eq('status', 'active')
+      .gte('date', today)
+      .neq('driver_id', user.id)
       .order('date', { ascending: true })
       .limit(5),
+    supabase.from('events')
+      .select('*, team:teams(name)')
+      .gte('date', today)
+      .order('date', { ascending: true })
+      .limit(6),
     supabase.from('ride_requests')
-      .select('*, ride_offer:ride_offers(*, driver:profiles(*))')
+      .select('*, ride_offer:ride_offers(date, time_departure, driver:profiles(full_name))')
       .eq('passenger_id', user.id)
       .in('status', ['pending', 'accepted'])
       .order('created_at', { ascending: false })
-      .limit(5),
-    supabase.from('ride_requests')
-      .select('*, passenger:profiles(*)')
-      .eq('status', 'pending')
-      .in('ride_offer_id',
-        (await supabase.from('ride_offers').select('id').eq('driver_id', user.id)).data?.map(o => o.id) || []
-      ),
-    supabase.from('messages')
-      .select('id', { count: 'exact' })
-      .eq('receiver_id', user.id)
-      .eq('read', false),
+      .limit(3),
+    supabase.from('messages').select('id', { count: 'exact' })
+      .eq('receiver_id', user.id).eq('read', false),
   ])
 
   const p = profile as UserProfile
+  const rides = (upcomingRides || []) as RideOffer[]
+  const events = (upcomingEvents || []) as ClubEvent[]
+  const todayRides = rides.filter(r => r.date === today)
+  const firstName = p?.full_name?.split(' ')[0] || 'amico'
+
+  const greeting = () => {
+    const h = new Date().getHours()
+    if (h < 12) return 'Buongiorno'
+    if (h < 18) return 'Buon pomeriggio'
+    return 'Buonasera'
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <Navbar />
-      <main className="pt-20 pb-24 md:pb-8 px-4 max-w-4xl mx-auto">
-        {/* Benvenuto */}
-        <div className="rounded-2xl p-5 mb-5 text-white shadow-lg"
-          style={{ background: 'linear-gradient(135deg, #1a5c2e, #2d7a46)' }}>
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
-              {p?.full_name?.charAt(0)?.toUpperCase() || '?'}
-            </div>
+
+      <main className="pt-4 md:pt-20 pb-safe px-4 max-w-2xl mx-auto space-y-6">
+
+        {/* ── Hero ─────────────────────────────────────────── */}
+        <div className="rounded-2xl p-5 text-white relative overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, #0f3d1e 0%, #1a5c2e 60%, #2d7a46 100%)' }}>
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold">Ciao, {p?.full_name?.split(' ')[0]}! 👋</h1>
-              <p className="text-white/80 text-sm">{ROLE_LABELS[p?.role || 'passenger']}</p>
-              {p?.address && <p className="text-white/60 text-xs mt-0.5">📍 {p.address}</p>}
+              <p className="text-white/70 text-sm">{greeting()},</p>
+              <h1 className="text-2xl font-black mt-0.5">{firstName} 👋</h1>
+              {p?.team && (
+                <p className="text-white/60 text-xs mt-1">🏉 {p.team.name}</p>
+              )}
             </div>
+            <Link href="/profile">
+              <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-2xl font-black border-2 border-white/30">
+                {p?.full_name?.charAt(0)?.toUpperCase() || '?'}
+              </div>
+            </Link>
+          </div>
+
+          {/* Quick stats */}
+          <div className="flex gap-4 mt-4 pt-4 border-t border-white/20">
+            {[
+              { v: p?.trips_completed || 0, l: 'Viaggi' },
+              { v: (p?.rating_avg || 0) > 0 ? p.rating_avg.toFixed(1) : '–', l: 'Rating' },
+              { v: unreadCount || 0, l: 'Messaggi' },
+            ].map(s => (
+              <div key={s.l} className="flex-1 text-center">
+                <div className="text-xl font-black">{s.v}</div>
+                <div className="text-xs text-white/60">{s.l}</div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Alert: profilo incompleto */}
+        {/* ── Alert profilo incompleto ──────────────────────── */}
         {(!p?.lat || p.lat === 0) && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex items-start gap-3">
-            <span className="text-2xl">⚠️</span>
-            <div>
-              <p className="font-semibold text-amber-800 text-sm">Profilo incompleto</p>
-              <p className="text-amber-700 text-xs mt-1">Aggiorna il tuo indirizzo per apparire sulla mappa</p>
-              <Link href="/profile" className="text-amber-800 underline text-xs font-semibold mt-1 inline-block">
-                Vai al profilo →
-              </Link>
+          <Link href="/profile">
+            <div className="flex items-center gap-3 p-4 rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <p className="font-semibold text-amber-800 text-sm">Completa il tuo profilo</p>
+                <p className="text-amber-600 text-xs mt-0.5">Aggiungi indirizzo e zona per comparire sulla mappa →</p>
+              </div>
             </div>
-          </div>
+          </Link>
         )}
 
-        {/* Quick stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-          <StatCard label="Passaggi offerti" value={myOffers?.length || 0} icon="🚗" color="#22c55e" />
-          <StatCard label="Passaggi richiesti" value={myRequests?.length || 0} icon="🙋" color="#3b82f6" />
-          <StatCard label="Richieste in arrivo" value={pendingRequests?.length || 0} icon="🔔" color="#f97316" />
-          <StatCard label="Messaggi non letti" value={unreadMessages?.length || 0} icon="💬" color="#8b5cf6" />
+        {/* ── Quick actions ─────────────────────────────────── */}
+        <div className="grid grid-cols-2 gap-3">
+          <Link href="/rides" className="card p-4 flex flex-col items-center gap-2 hover:shadow-md transition-shadow">
+            <span className="text-3xl">🔍</span>
+            <p className="font-bold text-gray-900 text-sm">Trova passaggio</p>
+            <p className="text-xs text-gray-400 text-center">Cerca chi va al campo</p>
+          </Link>
+          <Link href="/rides/new" className="card p-4 flex flex-col items-center gap-2 hover:shadow-md transition-shadow border-2"
+            style={{ borderColor: '#1a5c2e' }}>
+            <span className="text-3xl">🚗</span>
+            <p className="font-bold text-sm" style={{ color: '#1a5c2e' }}>Offri passaggio</p>
+            <p className="text-xs text-gray-400 text-center">Aggiungi posti a bordo</p>
+          </Link>
         </div>
 
-        {/* Link rapidi */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        {/* ── Mie prenotazioni attive ───────────────────────── */}
+        {myRequests && myRequests.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="section-title mb-0">Le mie prenotazioni</h2>
+              <Link href="/bookings" className="text-sm font-medium" style={{ color: '#1a5c2e' }}>Vedi tutte →</Link>
+            </div>
+            <div className="space-y-2">
+              {myRequests.map((req: {
+                id: string
+                status: string
+                ride_offer?: { date?: string; time_departure?: string; driver?: { full_name?: string } }
+              }) => (
+                <div key={req.id} className="card p-4 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-sm text-gray-900">
+                      {(req.ride_offer as { driver?: { full_name?: string } } | undefined)?.driver?.full_name || 'Driver'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {req.ride_offer?.date && format(new Date(req.ride_offer.date), 'EEE d MMM', { locale: it })}
+                      {req.ride_offer?.time_departure && ` · ${req.ride_offer.time_departure}`}
+                    </p>
+                  </div>
+                  <span className={`badge ${
+                    req.status === 'accepted' ? 'badge-green' :
+                    req.status === 'pending'  ? 'badge-gold' : 'badge-red'
+                  }`}>
+                    {req.status === 'accepted' ? '✓ Confermato' :
+                     req.status === 'pending'  ? '⏳ In attesa' : '✗ Rifiutato'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── Prossimi eventi ───────────────────────────────── */}
+        {events.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="section-title mb-0">Prossimi eventi</h2>
+              <Link href="/events" className="text-sm font-medium" style={{ color: '#1a5c2e' }}>Tutti →</Link>
+            </div>
+            <div className="scroll-x">
+              {events.map(ev => (
+                <EventCard key={ev.id} event={ev} compact />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── Passaggi oggi ─────────────────────────────────── */}
+        {todayRides.length > 0 && (
+          <section>
+            <h2 className="section-title">Passaggi disponibili oggi</h2>
+            <div className="space-y-3">
+              {todayRides.map(r => (
+                <RideCard key={r.id} offer={r} compact />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── Prossimi passaggi ─────────────────────────────── */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="section-title mb-0">
+              {todayRides.length > 0 ? 'Altri passaggi in settimana' : 'Passaggi disponibili'}
+            </h2>
+            <Link href="/rides" className="text-sm font-medium" style={{ color: '#1a5c2e' }}>Vedi tutti →</Link>
+          </div>
+          {rides.filter(r => r.date !== today).length === 0 && rides.length === 0 ? (
+            <div className="card p-8 text-center">
+              <p className="text-4xl mb-3">🚗</p>
+              <p className="text-gray-500 text-sm">Nessun passaggio disponibile al momento</p>
+              <Link href="/rides/new" className="btn-primary mt-4 inline-flex text-sm">
+                Sii il primo a offrire
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {rides.filter(r => r.date !== today).slice(0, 3).map(r => (
+                <RideCard key={r.id} offer={r} compact />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ── Quick links ───────────────────────────────────── */}
+        <div className="grid grid-cols-4 gap-2 pb-4">
           {[
-            { href: '/map', icon: '🗺️', label: 'Vedi Mappa' },
-            { href: '/rides', icon: '🚗', label: 'Passaggi' },
-            { href: '/rides/new', icon: '➕', label: 'Offri Passaggio' },
-            { href: '/messages', icon: '💬', label: 'Messaggi' },
+            { href: '/map',       icon: '🗺️', label: 'Mappa' },
+            { href: '/my-rides',  icon: '📋', label: 'I miei' },
+            { href: '/bookings',  icon: '🎫', label: 'Prenotaz.' },
+            { href: '/messages',  icon: '💬', label: 'Chat' },
           ].map(item => (
             <Link key={item.href} href={item.href}
-              className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-100">
-              <span className="text-2xl">{item.icon}</span>
-              <span className="text-xs font-semibold text-gray-700">{item.label}</span>
+              className="card p-3 flex flex-col items-center gap-1 hover:shadow-md transition-shadow">
+              <span className="text-xl">{item.icon}</span>
+              <span className="text-xs font-medium text-gray-600 text-center">{item.label}</span>
             </Link>
           ))}
         </div>
-
-        {/* Richieste in arrivo (per driver/rider) */}
-        {(pendingRequests?.length || 0) > 0 && (
-          <section className="mb-5">
-            <h2 className="text-base font-bold text-gray-800 mb-3">🔔 Richieste in arrivo</h2>
-            <div className="space-y-2">
-              {pendingRequests?.map((req: RideRequest & { passenger?: UserProfile }) => (
-                <div key={req.id} className="bg-white rounded-xl p-4 shadow-sm border border-orange-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-sm text-gray-800">{req.passenger?.full_name}</p>
-                      <p className="text-xs text-gray-500">{req.message || 'Nessun messaggio'}</p>
-                    </div>
-                    <Link href="/rides" className="px-3 py-1.5 text-xs font-semibold rounded-lg text-white"
-                      style={{ background: '#1a5c2e' }}>
-                      Gestisci
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Miei passaggi offerti */}
-        {(myOffers?.length || 0) > 0 && (
-          <section className="mb-5">
-            <h2 className="text-base font-bold text-gray-800 mb-3">🚗 I miei passaggi</h2>
-            <div className="space-y-2">
-              {(myOffers as RideOffer[]).map(offer => (
-                <div key={offer.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-sm text-gray-800">
-                        {format(new Date(offer.date), 'EEEE d MMMM', { locale: it })}
-                        {' · '}{offer.time_departure}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {offer.seats_available}/{offer.seats_total} posti ·{' '}
-                        {offer.price_per_seat > 0 ? `€${offer.price_per_seat}/persona` : 'Gratuito'}
-                      </p>
-                    </div>
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      offer.status === 'active' ? 'bg-green-100 text-green-700' :
-                      offer.status === 'full' ? 'bg-amber-100 text-amber-700' :
-                      'bg-gray-100 text-gray-600'
-                    }`}>
-                      {offer.status === 'active' ? 'Attivo' : offer.status === 'full' ? 'Completo' : 'Cancellato'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Miei passaggi richiesti */}
-        {(myRequests?.length || 0) > 0 && (
-          <section className="mb-5">
-            <h2 className="text-base font-bold text-gray-800 mb-3">🙋 Passaggi richiesti</h2>
-            <div className="space-y-2">
-              {(myRequests as Array<RideRequest & { ride_offer?: RideOffer & { driver?: UserProfile } }>).map(req => (
-                <div key={req.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-sm text-gray-800">
-                        {req.ride_offer?.driver?.full_name || 'Driver'}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {req.ride_offer?.date && format(new Date(req.ride_offer.date), 'EEEE d MMMM', { locale: it })}
-                        {req.ride_offer?.time_departure && ` · ${req.ride_offer.time_departure}`}
-                      </p>
-                    </div>
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      req.status === 'accepted' ? 'bg-green-100 text-green-700' :
-                      req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                      'bg-red-100 text-red-600'
-                    }`}>
-                      {req.status === 'accepted' ? '✓ Accettato' :
-                       req.status === 'pending' ? '⏳ In attesa' : '✗ Rifiutato'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
       </main>
-    </div>
-  )
-}
-
-function StatCard({ label, value, icon, color }: { label: string; value: number; icon: string; color: string }) {
-  return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-xl">{icon}</span>
-        <span className="text-2xl font-bold" style={{ color }}>{value}</span>
-      </div>
-      <p className="text-xs text-gray-500">{label}</p>
     </div>
   )
 }

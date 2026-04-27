@@ -2,46 +2,172 @@
 @import "leaflet/dist/leaflet.css";
 
 :root {
-  --urc-green: #1a5c2e;
-  --urc-green-light: #2d7a46;
-  --urc-gold: #c8a84b;
-  --urc-dark: #0f3d1e;
-  --background: #f8f9fa;
-  --foreground: #1a1a1a;
+  --green: #1a5c2e;
+  --green-light: #2d7a46;
+  --green-pale: #f0fdf4;
+  --gold: #c8a84b;
+  --gold-light: #fef9ee;
+  --dark: #0f3d1e;
+  --bg: #f4f6f8;
+  --card: #ffffff;
+  --text: #111827;
+  --text-muted: #6b7280;
+  --border: #e5e7eb;
+  --radius: 16px;
+  --shadow: 0 1px 4px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
 }
+
+* { box-sizing: border-box; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Fix Leaflet z-index in Next.js */
-.leaflet-pane,
-.leaflet-tile,
-.leaflet-marker-icon,
-.leaflet-marker-shadow,
-.leaflet-tile-pane,
-.leaflet-overlay-pane,
-.leaflet-shadow-pane,
-.leaflet-marker-pane,
-.leaflet-popup-pane,
-.leaflet-map-pane svg,
-.leaflet-map-pane canvas,
-.leaflet-zoom-box,
-.leaflet-image-layer,
-.leaflet-layer { z-index: auto; }
+/* ── Carte base ─────────────────────────────────────────── */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+/* ── Bottoni ─────────────────────────────────────────────── */
+.btn-primary {
+  background: var(--green);
+  color: white;
+  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 15px;
+  min-height: 48px;
+}
+.btn-primary:hover { background: var(--green-light); }
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-secondary {
+  background: white;
+  color: var(--green);
+  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: 2px solid var(--green);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 15px;
+  min-height: 48px;
+}
+.btn-secondary:hover { background: var(--green-pale); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 500;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 14px;
+  min-height: 44px;
+}
+.btn-ghost:hover { background: var(--bg); }
+
+/* ── Badge status ─────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+.badge-green  { background: #dcfce7; color: #15803d; }
+.badge-gold   { background: #fef9c3; color: #854d0e; }
+.badge-red    { background: #fee2e2; color: #b91c1c; }
+.badge-blue   { background: #dbeafe; color: #1d4ed8; }
+.badge-gray   { background: #f3f4f6; color: #374151; }
+.badge-orange { background: #ffedd5; color: #c2410c; }
+
+/* ── Input ───────────────────────────────────────────────── */
+.input {
+  width: 100%;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 15px;
+  color: var(--text);
+  background: white;
+  transition: border-color 0.15s;
+  outline: none;
+  min-height: 48px;
+}
+.input:focus { border-color: var(--green); }
+.input::placeholder { color: #9ca3af; }
+
+/* ── Section title ───────────────────────────────────────── */
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+/* ── Leaflet ─────────────────────────────────────────────── */
+.leaflet-pane, .leaflet-tile, .leaflet-marker-icon,
+.leaflet-marker-shadow, .leaflet-tile-pane, .leaflet-overlay-pane,
+.leaflet-shadow-pane, .leaflet-marker-pane, .leaflet-popup-pane,
+.leaflet-map-pane svg, .leaflet-map-pane canvas,
+.leaflet-zoom-box, .leaflet-image-layer, .leaflet-layer { z-index: auto; }
 .leaflet-top, .leaflet-bottom { z-index: 400; }
 .leaflet-control { z-index: 400; }
 .leaflet-popup { z-index: 500; }
 
-/* Custom scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #f1f1f1; }
-::-webkit-scrollbar-thumb { background: var(--urc-green); border-radius: 3px; }
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--green); }
 
-@keyframes pin-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.15); }
-}
+/* ── Animazioni ──────────────────────────────────────────── */
+@keyframes pin-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
 .pin-pulse { animation: pin-pulse 2s ease-in-out infinite; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.3s ease both; }
+
+/* ── Horizontal scroll snap ──────────────────────────────── */
+.scroll-x {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+.scroll-x::-webkit-scrollbar { display: none; }
+.scroll-x > * { scroll-snap-align: start; flex-shrink: 0; }
+
+/* ── Safe area (mobile) ──────────────────────────────────── */
+.pb-safe { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+.mb-nav { margin-bottom: calc(80px + env(safe-area-inset-bottom)); }

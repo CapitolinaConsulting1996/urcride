@@ -3,82 +3,178 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import type { UserProfile } from '@/types'
 
-const NAV_ITEMS = [
-  { href: '/map', label: 'Mappa', icon: '🗺️' },
-  { href: '/rides', label: 'Passaggi', icon: '🚗' },
-  { href: '/dashboard', label: 'Dashboard', icon: '🏠' },
-  { href: '/messages', label: 'Messaggi', icon: '💬' },
-  { href: '/profile', label: 'Profilo', icon: '👤' },
+const NAV = [
+  { href: '/dashboard',      label: 'Home',     icon: '🏠' },
+  { href: '/rides',          label: 'Passaggi', icon: '🚗' },
+  { href: '/events',         label: 'Eventi',   icon: '📅' },
+  { href: '/messages',       label: 'Chat',     icon: '💬' },
+  { href: '/notifications',  label: 'Avvisi',   icon: '🔔' },
+  { href: '/profile',        label: 'Profilo',  icon: '👤' },
 ]
 
 export default function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [user, setUser] = useState<UserProfile | null>(null)
+  const [unread, setUnread] = useState(0)
+  const [unreadNotifs, setUnreadNotifs] = useState(0)
 
-  async function handleLogout() {
+  const fetchCounts = async () => {
+    const { data: { user: u } } = await supabase.auth.getUser()
+    if (!u) return null
+
+    const [{ count: msgCount }, { count: notifCount }] = await Promise.all([
+      supabase.from('messages').select('id', { count: 'exact' })
+        .eq('receiver_id', u.id).eq('read', false),
+      supabase.from('notifications').select('id', { count: 'exact' })
+        .eq('user_id', u.id).eq('read', false),
+    ])
+    setUnread(msgCount || 0)
+    setUnreadNotifs(notifCount || 0)
+    return u
+  }
+
+  // Re-fetch counts on every page navigation
+  useEffect(() => {
+    fetchCounts()
+  }, [pathname])
+
+  // Initial load: profile + realtime subscription
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
+    async function init() {
+      const u = await fetchCounts()
+      if (!u) return
+
+      const { data } = await supabase.from('profiles').select('*').eq('id', u.id).single()
+      if (data) setUser(data as UserProfile)
+
+      // Realtime: increment badge when a new notification arrives
+      channel = supabase
+        .channel(`navbar-notifs-${u.id}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${u.id}`,
+        }, () => {
+          setUnreadNotifs(n => n + 1)
+        })
+        .subscribe()
+    }
+
+    init()
+    return () => { if (channel) supabase.removeChannel(channel) }
+  }, [])
+
+  async function logout() {
     await supabase.auth.signOut()
     router.push('/auth/login')
     router.refresh()
   }
 
+  const isActive = (href: string) => pathname.startsWith(href)
+
+  // Mobile NAV: only 5 items (drop Profilo, keep bell)
+  const mobileNav = [
+    { href: '/dashboard',     label: 'Home',     icon: '🏠' },
+    { href: '/rides',         label: 'Passaggi', icon: '🚗' },
+    { href: '/events',        label: 'Eventi',   icon: '📅' },
+    { href: '/notifications', label: 'Avvisi',   icon: '🔔' },
+    { href: '/profile',       label: 'Profilo',  icon: '👤' },
+  ]
+
   return (
     <>
-      {/* Desktop Navbar */}
-      <nav className="hidden md:flex fixed top-0 left-0 right-0 z-50 h-16 items-center justify-between px-6 shadow-md"
+      {/* ── Desktop top bar ──────────────────────────── */}
+      <nav className="hidden md:flex fixed top-0 left-0 right-0 z-50 h-16 items-center justify-between px-6 shadow-sm"
         style={{ background: '#1a5c2e' }}>
         <Link href="/dashboard" className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="https://upload.wikimedia.org/wikipedia/it/a/a8/Capitolina_Rugby_Logo.png"
-            alt="URC Logo"
-            className="h-10 w-10 rounded-full object-contain bg-white p-0.5"
-          />
-          <span className="text-white font-bold text-xl tracking-tight">URCRide</span>
+          <img src="https://upload.wikimedia.org/wikipedia/it/a/a8/Capitolina_Rugby_Logo.png"
+            alt="URC" className="h-9 w-9 rounded-full bg-white p-0.5 object-contain" />
+          <span className="text-white font-bold text-lg tracking-tight">URCRide</span>
         </Link>
 
         <div className="flex items-center gap-1">
-          {NAV_ITEMS.map(item => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                pathname.startsWith(item.href)
+          {NAV.map(item => (
+            <Link key={item.href} href={item.href}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors relative ${
+                isActive(item.href)
                   ? 'bg-white/20 text-white'
                   : 'text-white/70 hover:text-white hover:bg-white/10'
-              }`}
-            >
+              }`}>
               {item.label}
+              {item.href === '/messages' && unread > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center px-1">
+                  {unread}
+                </span>
+              )}
+              {item.href === '/notifications' && unreadNotifs > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-amber-400 text-white text-[10px] rounded-full flex items-center justify-center px-1">
+                  {unreadNotifs}
+                </span>
+              )}
             </Link>
           ))}
-          <button
-            onClick={handleLogout}
-            className="ml-4 px-4 py-2 rounded-lg text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-          >
+          {user?.is_admin && (
+            <Link href="/admin"
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isActive('/admin') ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'
+              }`}>
+              ⚙️ Admin
+            </Link>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Link href="/map" className="text-white/70 hover:text-white transition-colors text-sm font-medium">
+            🗺️ Mappa
+          </Link>
+          <div className="w-px h-4 bg-white/20" />
+          <Link href="/profile" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold text-white">
+              {user?.full_name?.charAt(0) || '?'}
+            </div>
+          </Link>
+          <button onClick={logout} className="text-white/60 hover:text-white text-sm transition-colors">
             Esci
           </button>
         </div>
       </nav>
 
-      {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex border-t border-gray-200 bg-white shadow-lg">
-        {NAV_ITEMS.map(item => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex flex-1 flex-col items-center py-2 gap-0.5 text-xs font-medium transition-colors ${
-              pathname.startsWith(item.href)
-                ? 'text-[#1a5c2e]'
-                : 'text-gray-400'
-            }`}
-          >
-            <span className="text-lg">{item.icon}</span>
-            <span>{item.label}</span>
-          </Link>
-        ))}
+      {/* ── Mobile bottom tab bar ─────────────────────── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 safe-area-inset-bottom"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="flex">
+          {mobileNav.map(item => (
+            <Link key={item.href} href={item.href}
+              className={`flex flex-1 flex-col items-center py-2 gap-0.5 relative transition-colors ${
+                isActive(item.href) ? 'text-[#1a5c2e]' : 'text-gray-400'
+              }`}>
+              <span className="text-xl leading-none">{item.icon}</span>
+              <span className="text-[10px] font-medium">{item.label}</span>
+              {item.href === '/messages' && unread > 0 && (
+                <span className="absolute top-1 right-1/4 min-w-[16px] h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center px-1">
+                  {unread}
+                </span>
+              )}
+              {item.href === '/notifications' && unreadNotifs > 0 && (
+                <span className="absolute top-1 right-1/4 min-w-[16px] h-4 bg-amber-400 text-white text-[10px] rounded-full flex items-center justify-center px-1">
+                  {unreadNotifs}
+                </span>
+              )}
+              {isActive(item.href) && (
+                <span className="absolute bottom-0 left-1/4 right-1/4 h-0.5 rounded-full bg-[#1a5c2e]" />
+              )}
+            </Link>
+          ))}
+        </div>
       </nav>
     </>
   )
