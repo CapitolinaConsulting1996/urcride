@@ -9,9 +9,10 @@ import dynamicImport from 'next/dynamic'
 import { createClient } from '@/lib/supabase'
 import Navbar from '@/components/layout/Navbar'
 import RideCard from '@/components/ui/RideCard'
-import type { RideOffer, UserProfile, ClubEvent, Team } from '@/types'
+import type { RideOffer, UserProfile, ClubEvent, Team, MapPin } from '@/types'
+import type { MapViewProps } from '@/components/map/MapView'
 
-const MapView = dynamicImport(() => import('@/components/map/MapView'), {
+const MapView = dynamicImport<MapViewProps>(() => import('@/components/map/MapView'), {
   ssr: false,
   loading: () => <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-2xl"><p className="text-gray-400">Caricamento mappa...</p></div>,
 })
@@ -23,6 +24,7 @@ export default function RidesPage() {
   const [events, setEvents] = useState<ClubEvent[]>([])
   const [teams, setTeams] = useState<Team[]>([])
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null)
+  const [mapPins, setMapPins] = useState<MapPin[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<ViewMode>('list')
   const [showModal, setShowModal] = useState<string | null>(null)
@@ -44,7 +46,7 @@ export default function RidesPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/auth/login'); return }
 
-    const [{ data: profile }, { data: allOffers }, { data: evts }, { data: tms }, { data: reqs }] = await Promise.all([
+    const [{ data: profile }, { data: allOffers }, { data: evts }, { data: tms }, { data: reqs }, { data: allProfiles }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('ride_offers')
         .select('*, driver:profiles(id,full_name,zone,address,lat,lng,role,rating_avg,trips_completed,is_verified,whatsapp_number), event:events(id,title), team:teams(id,name)')
@@ -54,10 +56,16 @@ export default function RidesPage() {
       supabase.from('events').select('*, team:teams(name)').gte('date', today).order('date', { ascending: true }).limit(20),
       supabase.from('teams').select('*').order('name'),
       supabase.from('ride_requests').select('ride_offer_id, status').eq('passenger_id', user.id),
+      supabase.from('profiles').select('*').not('lat', 'eq', 0).not('lng', 'eq', 0),
     ])
 
     if (profile) setCurrentUser(profile as UserProfile)
     setOffers((allOffers || []) as RideOffer[])
+    setMapPins((allProfiles || []).map((p: UserProfile) => ({
+      user: p,
+      role: p.role,
+      schedules: [],
+    })))
     setEvents((evts || []) as ClubEvent[])
     setTeams((tms || []) as Team[])
 
@@ -224,13 +232,9 @@ export default function RidesPage() {
           <div className="px-4 max-w-2xl mx-auto" style={{ height: '65vh' }}>
             <MapView
               key="rides-map"
-              pins={filtered.map(o => ({
-                user: o.driver as UserProfile,
-                role: o.driver?.role || 'driver',
-                schedules: [],
-              }))}
+              pins={mapPins}
               currentUserId={currentUser?.id}
-              onMessageUser={uid => router.push(`/messages/${uid}`)}
+              onMessageUser={(uid: string) => router.push(`/messages/${uid}`)}
             />
           </div>
         )}

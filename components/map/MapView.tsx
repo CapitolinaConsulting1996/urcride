@@ -5,7 +5,7 @@ import type { MapPin } from '@/types'
 import { URC_LOCATION, ROLE_LABELS } from '@/types'
 import { buildWhatsAppLink } from '@/lib/matching'
 
-interface MapViewProps {
+export interface MapViewProps {
   pins: MapPin[]
   currentUserId?: string
   onMessageUser?: (userId: string) => void
