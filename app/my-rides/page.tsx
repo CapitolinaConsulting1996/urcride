@@ -153,8 +153,9 @@ function MyRidesContent() {
   const pendingCount = myOffers.flatMap(r => r.requests || []).filter(r => r.status === 'pending').length
   const upcomingOffers = myOffers.filter(r => r.date >= today && r.status === 'active')
   const pastOffers = myOffers.filter(r => r.date < today || r.status !== 'active')
-  const upcomingBookings = myBookings.filter(b => (b.ride_offer?.date ?? '') >= today)
-  const pastBookings = myBookings.filter(b => (b.ride_offer?.date ?? '') < today)
+  const validBookings = myBookings.filter(b => b.ride_offer?.date)
+  const upcomingBookings = validBookings.filter(b => b.ride_offer!.date >= today)
+  const pastBookings = validBookings.filter(b => b.ride_offer!.date < today)
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
