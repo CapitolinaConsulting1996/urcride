@@ -11,6 +11,7 @@ const NAV = [
   { href: '/rides',          label: 'Passaggi', icon: '🚗' },
   { href: '/my-rides',       label: 'I miei',   icon: '🎫' },
   { href: '/events',         label: 'Eventi',   icon: '📅' },
+  { href: '/map',            label: 'Mappa',    icon: '🗺️' },
   { href: '/messages',       label: 'Chat',     icon: '💬' },
   { href: '/notifications',  label: 'Avvisi',   icon: '🔔' },
   { href: '/profile',        label: 'Profilo',  icon: '👤' },
@@ -126,8 +127,6 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Link href="/map" className="text-white/70 hover:text-white transition-colors text-sm font-medium">🗺️ Mappa</Link>
-          <div className="w-px h-4 bg-white/20" />
           <Link href="/profile" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold text-white">
               {user?.full_name?.charAt(0) || '?'}

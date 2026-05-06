@@ -52,6 +52,12 @@ export default function ProfilePage() {
   const router = useRouter()
   const supabase = createClient()
 
+  async function logout() {
+    await supabase.auth.signOut()
+    router.push('/auth/login')
+    router.refresh()
+  }
+
   useEffect(() => { loadProfile() }, [])
 
   async function loadProfile() {
@@ -408,6 +414,11 @@ export default function ProfilePage() {
             <p className="text-sm text-gray-400 text-center py-2">Nessun orario aggiunto</p>
           )}
         </div>
+
+        <button onClick={logout}
+          className="w-full py-3 rounded-2xl border-2 border-red-200 text-red-500 font-semibold text-sm hover:bg-red-50 transition-colors mb-4">
+          Esci dall&apos;account
+        </button>
       </main>
     </div>
   )
