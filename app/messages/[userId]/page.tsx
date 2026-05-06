@@ -78,7 +78,7 @@ export default function ChatPage() {
     return () => { supabase.removeChannel(channel) }
   }
 
-  async function sendMessage(e: React.FormEvent) {
+  async function sendMessage(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!newMessage.trim() || !currentUserId || sending) return
     setSending(true)
@@ -103,11 +103,12 @@ export default function ChatPage() {
   )
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col bg-gray-50" style={{ height: '100dvh' }}>
       {/* Header */}
-      <header className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200 shadow-sm z-10">
-        <Link href="/messages" className="text-gray-400 hover:text-gray-600 text-xl">←</Link>
-        <div className="w-9 h-9 rounded-full flex items-center justify-center text-base font-bold text-white"
+      <header className="flex-shrink-0 flex items-center gap-3 px-4 bg-white border-b border-gray-200 shadow-sm z-10"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 12px)', paddingBottom: '12px' }}>
+        <Link href="/messages" className="text-gray-400 hover:text-gray-600 text-xl p-1 -ml-1">←</Link>
+        <div className="w-9 h-9 rounded-full flex items-center justify-center text-base font-bold text-white flex-shrink-0"
           style={{ background: '#1a5c2e' }}>
           {otherUser?.full_name?.charAt(0)?.toUpperCase() || '?'}
         </div>
@@ -120,7 +121,7 @@ export default function ChatPage() {
             href={buildWhatsAppLink(otherUser.whatsapp_number, otherUser.full_name, 'oggi', '?')}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-white text-xs font-semibold"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-white text-xs font-semibold flex-shrink-0"
             style={{ background: '#25D366' }}>
             💬 WA
           </a>
@@ -164,20 +165,22 @@ export default function ChatPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
+      {/* Input — safe-area-inset-bottom per la home bar iOS */}
       <form onSubmit={sendMessage}
-        className="flex-shrink-0 flex gap-3 px-4 py-3 bg-white border-t border-gray-200">
+        className="flex-shrink-0 flex gap-3 px-4 pt-3 bg-white border-t border-gray-200"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
         <input
           type="text"
           value={newMessage}
           onChange={e => setNewMessage(e.target.value)}
           placeholder="Scrivi un messaggio..."
-          className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a5c2e]"
+          className="flex-1 border border-gray-300 rounded-full px-4 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-[#1a5c2e]"
+          style={{ fontSize: '16px' }}
         />
         <button
           type="submit"
           disabled={!newMessage.trim() || sending}
-          className="w-10 h-10 rounded-full text-white flex items-center justify-center flex-shrink-0 disabled:opacity-50 transition-opacity"
+          className="w-11 h-11 rounded-full text-white flex items-center justify-center flex-shrink-0 disabled:opacity-50 transition-opacity"
           style={{ background: '#1a5c2e' }}>
           ➤
         </button>

@@ -43,7 +43,7 @@ export default function NewEventPage() {
     setForm(f => ({ ...f, [field]: value }))
   }
 
-  async function submit(e: React.FormEvent<HTMLFormElement>) {
+  async function submit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
     const { error } = await supabase.from('events').insert({

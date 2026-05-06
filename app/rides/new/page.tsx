@@ -26,7 +26,9 @@ function NewRideForm() {
   const [hasLuggage, setHasLuggage] = useState(false)
   const [preferences, setPreferences] = useState('')
   const [notes, setNotes] = useState('')
-  const [originAddress, setOriginAddress] = useState('')
+  const [homeAddress, setHomeAddress] = useState('')
+  const [useCustomOrigin, setUseCustomOrigin] = useState(false)
+  const [customOriginAddress, setCustomOriginAddress] = useState('')
 
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -49,7 +51,7 @@ function NewRideForm() {
       ])
       setEvents((evts || []) as ClubEvent[])
       setTeams((tms || []) as Team[])
-      if (prof?.address) setOriginAddress(prof.address)
+      if (prof?.address) setHomeAddress(prof.address)
       if (prof?.team_id) setTeamId(prof.team_id)
     }
     init()
@@ -63,7 +65,7 @@ function NewRideForm() {
     }
   }, [eventId, events])
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
     setLoading(true)
@@ -85,7 +87,7 @@ function NewRideForm() {
       has_luggage: hasLuggage,
       preferences: preferences || null,
       notes: notes || null,
-      origin_address: originAddress || null,
+      origin_address: useCustomOrigin ? (customOriginAddress || null) : (homeAddress || null),
       status: 'active',
     })
 
@@ -147,6 +149,51 @@ function NewRideForm() {
               ))}
             </div>
           </div>
+
+          {/* Punto di partenza — nascosto se si parte dal campo */}
+          {direction !== 'from_field' && (
+            <div className="card p-4">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-3">
+                Punto di partenza
+              </label>
+              <div className="space-y-2">
+                <label className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                  !useCustomOrigin ? 'border-[#1a5c2e] bg-green-50' : 'border-gray-200 bg-white'
+                }`}>
+                  <input type="radio" name="origin" checked={!useCustomOrigin}
+                    onChange={() => setUseCustomOrigin(false)}
+                    className="w-4 h-4 accent-[#1a5c2e] flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-gray-900">🏠 Dal mio indirizzo di casa</p>
+                    <p className="text-xs text-gray-500 truncate mt-0.5">
+                      {homeAddress || 'Non impostato nel profilo'}
+                    </p>
+                  </div>
+                </label>
+                <label className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                  useCustomOrigin ? 'border-[#1a5c2e] bg-green-50' : 'border-gray-200 bg-white'
+                }`}>
+                  <input type="radio" name="origin" checked={useCustomOrigin}
+                    onChange={() => setUseCustomOrigin(true)}
+                    className="w-4 h-4 accent-[#1a5c2e] flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold text-sm text-gray-900">📍 Indirizzo diverso</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Solo per questa corsa</p>
+                  </div>
+                </label>
+              </div>
+              {useCustomOrigin && (
+                <input
+                  type="text"
+                  value={customOriginAddress}
+                  onChange={e => setCustomOriginAddress(e.target.value)}
+                  placeholder="es. Via Salaria 50, Prati, Roma"
+                  className="input mt-3"
+                  autoFocus
+                />
+              )}
+            </div>
+          )}
 
           {/* Data e orari */}
           <div className="card p-4 space-y-3">
@@ -229,12 +276,6 @@ function NewRideForm() {
 
           {/* Dettagli aggiuntivi */}
           <div className="card p-4 space-y-3">
-            <div>
-              <label className="text-xs font-medium text-gray-500 mb-1 block">Punto di partenza</label>
-              <input type="text" value={originAddress} onChange={e => setOriginAddress(e.target.value)}
-                placeholder="es. Via Salaria 50, Prati, Roma" className="input" />
-            </div>
-
             <div>
               <label className="text-xs font-medium text-gray-500 mb-1 block">Preferenze</label>
               <input type="text" value={preferences} onChange={e => setPreferences(e.target.value)}

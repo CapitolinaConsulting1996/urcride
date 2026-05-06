@@ -69,7 +69,7 @@ export default function EditEventPage() {
   const set = (field: string, value: string) =>
     setForm(f => ({ ...f, [field]: value }))
 
-  async function submit(e: React.FormEvent) {
+  async function submit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!event) return
     setSaving(true)

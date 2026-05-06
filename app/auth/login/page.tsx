@@ -15,7 +15,7 @@ export default function LoginPage() {
   const router = useRouter()
   const supabase = createClient()
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
     setLoading(true)

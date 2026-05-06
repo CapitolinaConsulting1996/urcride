@@ -9,19 +9,20 @@ import type { UserProfile } from '@/types'
 const NAV = [
   { href: '/dashboard',      label: 'Home',     icon: '🏠' },
   { href: '/rides',          label: 'Passaggi', icon: '🚗' },
+  { href: '/my-rides',       label: 'I miei',   icon: '🎫' },
   { href: '/events',         label: 'Eventi',   icon: '📅' },
   { href: '/messages',       label: 'Chat',     icon: '💬' },
   { href: '/notifications',  label: 'Avvisi',   icon: '🔔' },
   { href: '/profile',        label: 'Profilo',  icon: '👤' },
 ]
 
-// 5 tab su mobile: Chat al posto di Eventi (Eventi accessibile dalla Home)
+// Mobile: 5 tab — "I miei" sostituisce "Eventi" (raggiungibili dalla Home)
 const MOBILE_NAV = [
-  { href: '/dashboard',     label: 'Home',     icon: '🏠' },
-  { href: '/rides',         label: 'Passaggi', icon: '🚗' },
-  { href: '/events',        label: 'Eventi',   icon: '📅' },
-  { href: '/messages',      label: 'Chat',     icon: '💬' },
-  { href: '/profile',       label: 'Profilo',  icon: '👤' },
+  { href: '/dashboard',  label: 'Home',     icon: '🏠' },
+  { href: '/rides',      label: 'Passaggi', icon: '🚗' },
+  { href: '/my-rides',   label: 'I miei',   icon: '🎫' },
+  { href: '/messages',   label: 'Chat',     icon: '💬' },
+  { href: '/profile',    label: 'Profilo',  icon: '👤' },
 ]
 
 export default function Navbar() {
@@ -31,16 +32,27 @@ export default function Navbar() {
   const [user, setUser] = useState<UserProfile | null>(null)
   const [unread, setUnread] = useState(0)
   const [unreadNotifs, setUnreadNotifs] = useState(0)
+  const [pendingRideRequests, setPendingRideRequests] = useState(0)
 
   const fetchCounts = async () => {
     const { data: { user: u } } = await supabase.auth.getUser()
     if (!u) return null
-    const [{ count: msgCount }, { count: notifCount }] = await Promise.all([
+    const [{ count: msgCount }, { count: notifCount }, { data: myOfferIds }] = await Promise.all([
       supabase.from('messages').select('id', { count: 'exact' }).eq('receiver_id', u.id).eq('read', false),
       supabase.from('notifications').select('id', { count: 'exact' }).eq('user_id', u.id).eq('read', false),
+      supabase.from('ride_offers').select('id').eq('driver_id', u.id).eq('status', 'active'),
     ])
     setUnread(msgCount || 0)
     setUnreadNotifs(notifCount || 0)
+    if (myOfferIds && myOfferIds.length > 0) {
+      const ids = myOfferIds.map(o => o.id)
+      const { count: pendingCount } = await supabase
+        .from('ride_requests').select('id', { count: 'exact' })
+        .in('ride_offer_id', ids).eq('status', 'pending')
+      setPendingRideRequests(pendingCount || 0)
+    } else {
+      setPendingRideRequests(0)
+    }
     return u
   }
 
@@ -98,6 +110,9 @@ export default function Navbar() {
               {item.href === '/notifications' && unreadNotifs > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-amber-400 text-white text-[10px] rounded-full flex items-center justify-center px-1">{unreadNotifs}</span>
               )}
+              {item.href === '/my-rides' && pendingRideRequests > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-amber-400 text-white text-[10px] rounded-full flex items-center justify-center px-1">{pendingRideRequests}</span>
+              )}
             </Link>
           ))}
           {user?.is_admin && (
@@ -130,8 +145,12 @@ export default function Navbar() {
             const active = isActive(item.href)
             const hasBadge =
               (item.href === '/messages' && unread > 0) ||
+              (item.href === '/my-rides' && pendingRideRequests > 0) ||
               (item.href === '/profile' && totalBadge > 0)
-            const badgeCount = item.href === '/messages' ? unread : totalBadge
+            const badgeCount =
+              item.href === '/messages' ? unread :
+              item.href === '/my-rides' ? pendingRideRequests :
+              totalBadge
 
             return (
               <Link key={item.href} href={item.href}

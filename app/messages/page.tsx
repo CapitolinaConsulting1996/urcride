@@ -74,7 +74,7 @@ export default function MessagesPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className="pt-20 pb-24 md:pb-8 px-4 max-w-lg mx-auto">
+      <main className="pt-4 md:pt-20 pb-safe px-4 max-w-lg mx-auto">
         <h1 className="text-xl font-bold text-gray-800 mb-5">Messaggi</h1>
 
         {conversations.length === 0 ? (

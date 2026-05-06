@@ -59,7 +59,7 @@ export default function NewEventPage() {
       ? generateDates(form.date, form.recurrence, form.recurrence_end_date).length
       : 0
 
-  async function submit(e: React.FormEvent) {
+  async function submit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
 
