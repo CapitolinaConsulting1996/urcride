@@ -17,13 +17,15 @@ const NAV = [
   { href: '/profile',        label: 'Profilo',  icon: '👤' },
 ]
 
-// Mobile: 5 tab — "I miei" sostituisce "Eventi" (raggiungibili dalla Home)
 const MOBILE_NAV = [
-  { href: '/dashboard',  label: 'Home',     icon: '🏠' },
-  { href: '/rides',      label: 'Passaggi', icon: '🚗' },
-  { href: '/my-rides',   label: 'I miei',   icon: '🎫' },
-  { href: '/messages',   label: 'Chat',     icon: '💬' },
-  { href: '/profile',    label: 'Profilo',  icon: '👤' },
+  { href: '/dashboard',      label: 'Home',     icon: '🏠' },
+  { href: '/rides',          label: 'Passaggi', icon: '🚗' },
+  { href: '/my-rides',       label: 'I miei',   icon: '🎫' },
+  { href: '/events',         label: 'Eventi',   icon: '📅' },
+  { href: '/messages',       label: 'Chat',     icon: '💬' },
+  { href: '/notifications',  label: 'Avvisi',   icon: '🔔' },
+  { href: '/map',            label: 'Mappa',    icon: '🗺️' },
+  { href: '/profile',        label: 'Profilo',  icon: '👤' },
 ]
 
 export default function Navbar() {
@@ -84,8 +86,6 @@ export default function Navbar() {
 
   const isActive = (href: string) => pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
 
-  const totalBadge = unread + unreadNotifs
-
   return (
     <>
       {/* ── Desktop top bar ──────────────────────────── */}
@@ -139,41 +139,39 @@ export default function Navbar() {
       {/* ── Mobile bottom tab bar ─────────────────────── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.08)]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <div className="flex items-stretch h-16">
+        <div className="flex items-stretch h-14">
           {MOBILE_NAV.map(item => {
             const active = isActive(item.href)
             const hasBadge =
-              (item.href === '/messages' && unread > 0) ||
-              (item.href === '/my-rides' && pendingRideRequests > 0) ||
-              (item.href === '/profile' && totalBadge > 0)
+              (item.href === '/messages'      && unread > 0) ||
+              (item.href === '/my-rides'      && pendingRideRequests > 0) ||
+              (item.href === '/notifications' && unreadNotifs > 0)
             const badgeCount =
-              item.href === '/messages' ? unread :
-              item.href === '/my-rides' ? pendingRideRequests :
-              totalBadge
+              item.href === '/messages'      ? unread :
+              item.href === '/my-rides'      ? pendingRideRequests :
+              unreadNotifs
 
             return (
               <Link key={item.href} href={item.href}
-                className="flex flex-1 flex-col items-center justify-center gap-0.5 relative tap-highlight-none"
+                className="flex flex-1 flex-col items-center justify-center gap-0.5 relative"
                 style={{ WebkitTapHighlightColor: 'transparent' }}>
 
-                {/* Pill background for active tab */}
                 {active && (
-                  <span className="absolute inset-x-2 inset-y-1.5 rounded-2xl"
-                    style={{ background: '#1a5c2e18' }} />
+                  <span className="absolute inset-x-1 inset-y-1 rounded-xl"
+                    style={{ background: '#1a5c2e14' }} />
                 )}
 
-                <span className={`text-2xl leading-none transition-transform ${active ? 'scale-110' : ''}`}>
+                <span className={`text-lg leading-none transition-transform ${active ? 'scale-110' : ''}`}>
                   {item.icon}
                 </span>
-                <span className={`text-[10px] font-semibold tracking-tight transition-colors ${
+                <span className={`text-[9px] font-semibold tracking-tight transition-colors ${
                   active ? 'text-[#1a5c2e]' : 'text-gray-400'
                 }`}>
                   {item.label}
                 </span>
 
-                {/* Badge notifiche */}
                 {hasBadge && (
-                  <span className="absolute top-2 right-[18%] min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-sm">
+                  <span className="absolute top-1 right-[10%] min-w-[14px] h-3.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 shadow-sm">
                     {badgeCount > 9 ? '9+' : badgeCount}
                   </span>
                 )}
