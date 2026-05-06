@@ -101,21 +101,19 @@ function MyRidesContent() {
 
     setMyOffers((offersData || []) as RideWithRequests[])
 
-    // Supabase restituisce join come array — normalizzo
-    const rawBookings = (bookingsData || []) as unknown as {
-      id: string; status: string; message: string | null; created_at: string
-      ride_offer: { id: string; date: string; time_departure: string; direction: string; price_per_seat: number; origin_address: string | null; driver: { full_name: string; whatsapp_number?: string }[]; event: { title: string }[] }[]
-    }[]
-    setMyBookings(rawBookings.map(b => ({
-      ...b,
-      ride_offer: b.ride_offer?.[0]
-        ? {
-            ...b.ride_offer[0],
-            driver: b.ride_offer[0].driver?.[0] ?? null,
-            event: b.ride_offer[0].event?.[0] ?? null,
-          }
-        : null,
-    })))
+    // Supabase client restituisce many-to-one come oggetto singolo (non array)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawBookings = (bookingsData || []) as any[]
+    setMyBookings(rawBookings.map(b => {
+      const ro = b.ride_offer
+      if (!ro || !ro.id) return { ...b, ride_offer: null }
+      const driver = Array.isArray(ro.driver) ? ro.driver[0] ?? null : ro.driver ?? null
+      const event  = Array.isArray(ro.event)  ? ro.event[0]  ?? null : ro.event  ?? null
+      return {
+        ...b,
+        ride_offer: { ...ro, driver, event },
+      }
+    }))
 
     setLoading(false)
   }, [])
@@ -434,6 +432,7 @@ function OfferCard({
 
 function BookingCard({ booking: b }: { booking: BookingWithOffer }) {
   const offer = b.ride_offer
+  if (!offer?.date) return null
 
   const statusBadge = () => {
     if (b.status === 'accepted') return <span className="badge badge-green">✓ Confermato</span>
